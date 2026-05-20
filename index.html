@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cultural Map Navigator — Sanskriti Sphere</title>
+
+  <!-- CesiumJS -->
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+
+  <link rel="stylesheet" href="map.css">
+</head>
+<body>
+
+  <div id="cesiumContainer"></div>
+
+  <!-- Header -->
+  <div id="header">
+    <span id="logo">🪔 Sanskriti Sphere</span>
+    <span id="tagline">Cultural Map Navigator</span>
+    <div id="header-right">
+      <button class="filter-btn active" data-filter="all"      onclick="setFilter('all')">All</button>
+      <button class="filter-btn"        data-filter="monument" onclick="setFilter('monument')">Monuments</button>
+      <button class="filter-btn"        data-filter="temple"   onclick="setFilter('temple')">Temples</button>
+      <button class="filter-btn"        data-filter="cave"     onclick="setFilter('cave')">Caves</button>
+      <button id="nearby-btn" onclick="findNearest()">📍 Near me</button>
+      <button id="chat-btn" onclick="toggleChat()">💬 Ask AI</button>
+    </div>
+  </div>
+
+  <!-- Monument sidebar -->
+  <div id="sidebar">
+    <div id="sidebar-title">Heritage Sites</div>
+    <div id="sidebar-list"></div>
+  </div>
+
+  <!-- Popup card -->
+  <div id="popup" style="display:none">
+    <div data-drag-handle style="position:absolute;top:0;left:0;right:0;height:44px;cursor:grab;border-radius:14px 14px 0 0;"></div>
+    <button id="popup-close" onclick="closePopup()">✕</button>
+    <div id="popup-category"></div>
+    <div id="popup-name"></div>
+    <div id="popup-meta"></div>
+    <div id="popup-location"></div>
+    <div id="popup-desc"></div>
+    <div id="popup-buttons">
+      <button class="popup-btn nav-btn"   id="btn-navigate">🗺 Navigate Here</button>
+      <button class="popup-btn tour-btn"  id="btn-tour">🏛 Virtual Tour</button>
+      <button class="popup-btn chat-btn2" id="btn-ask">💬 Ask AI</button>
+    </div>
+  </div>
+
+  <!-- Navigation HUD — shows during real-time navigation -->
+  <div id="nav-hud" style="display:none">
+    <div id="nav-instruction">
+      <span id="nav-icon">⬆</span>
+      <span id="nav-text">Starting navigation...</span>
+    </div>
+    <div id="nav-meta">
+      <span id="nav-dist"></span>
+      <span id="nav-eta"></span>
+    </div>
+    <button id="recenter-btn" onclick="recenterToUser()">🎯</button>
+    <button id="nav-stop" onclick="stopNavigation()">✕ End</button>
+  </div>
+
+  <!-- Nearest panel -->
+  <div id="nearby-panel" style="display:none">
+    <h4>Nearest to you</h4>
+    <div id="nearby-list"></div>
+    <button onclick="closeNearby()">Close</button>
+  </div>
+
+  <!-- AI Chatbot -->
+  <div id="chat-panel" style="display:none">
+    <div id="chat-header" data-drag-handle>
+      <span>🏛 Heritage AI</span>
+      <button onclick="toggleChat()">✕</button>
+    </div>
+    <div id="chat-messages">
+      <div class="msg ai">Namaste! Ask me anything about India's heritage monuments.</div>
+    </div>
+    <div id="chat-input-row">
+      <input id="chat-input" type="text" placeholder="Ask about any monument..."
+             onkeydown="if(event.key==='Enter') sendMessage()"/>
+      <button onclick="sendMessage()">→</button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="locations.js"></script>
+  <script src="map.js"></script>
+</body>
+</html>
