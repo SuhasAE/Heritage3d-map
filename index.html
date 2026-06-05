@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Heritage Map — India's Living Heritage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C96B;
+    --gold-dim: rgba(201,168,76,0.15);
+    --bg-dark: #0D0D0F;
+    --bg-panel: rgba(13,13,15,0.92);
+    --bg-card: rgba(20,18,14,0.96);
+    --text-primary: #F0EAD6;
+    --text-dim: rgba(240,234,214,0.5);
+    --accent-red: #C0392B;
+    --accent-teal: #2E9B8F;
+    --nav-route: #4FC3F7;
+    --panel-border: rgba(201,168,76,0.25);
+    --radius: 12px;
+    --sidebar-w: 340px;
+    --ss-purple: #7C3AED;
+    --ss-purple-light: #A78BFA;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #map {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ─── GLOBE PROJECTION TRANSITION ─── */
+  .maplibregl-canvas { transition: none; }
+
+  /* ─── TOP BAR ─── */
+  #topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(to bottom, rgba(13,13,15,0.97), transparent);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  #logo {
+    font-family: 'Cinzel', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 30px rgba(201,168,76,0.4);
+    pointer-events: auto;
+  }
+
+  #logo span { color: var(--text-primary); font-weight: 400; }
+
+  .divider-v { width: 1px; height: 24px; background: var(--panel-border); }
+
+  #site-count {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    pointer-events: auto;
+  }
+
+  /* ─── SANSKRITI SPHERE FEATURE BUTTON ─── */
+  #ss-feature-btn {
+    margin-left: auto;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #4C1D95 0%, #7C3AED 50%, #A78BFA 100%);
+    border: 1px solid rgba(167,139,250,0.5);
+    border-radius: 100px;
+    padding: 8px 18px 8px 12px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(124,58,237,0.4), 0 4px 16px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #ss-feature-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  #ss-feature-btn:hover::before { opacity: 1; }
+  #ss-feature-btn:hover { 
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(124,58,237,0.6), 0 8px 24px rgba(0,0,0,0.5);
+    border-color: rgba(167,139,250,0.8);
+  }
+
+  .ss-icon-wrap {
+    width: 28px; height: 28px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .ss-label-wrap { display: flex; flex-direction: column; }
+
+  .ss-eyebrow {
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.6);
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .ss-title {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.04em;
+    line-height: 1;
+  }
+
+  .ss-arrow {
+    font-size: 12px;
+    color: rgba(255,255,255,0.7);
+    margin-left: 4px;
+  }
+
+  /* Pulse animation for attention */
+  @keyframes ssPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(124,58,237,0.4), 0 4px 16px rgba(0,0,0,0.4); }
+    50% { box-shadow: 0 0 35px rgba(124,58,237,0.7), 0 4px 20px rgba(0,0,0,0.5); }
+  }
+  #ss-feature-btn { animation: ssPulse 3s ease-in-out infinite; }
+  #ss-feature-btn:hover { animation: none; }
+
+  /* ─── SEARCH BAR ─── */
+  #search-container {
+    position: absolute;
+    top: 76px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 480px;
+    z-index: 100;
+  }
+
+  #search-wrap {
+    display: flex;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--panel-border);
+    border-radius: 100px;
+    padding: 10px 20px;
+    gap: 10px;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.08);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  #search-wrap:focus-within {
+    border-color: var(--gold);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(201,168,76,0.15);
+  }
+
+  #search-icon { color: var(--gold); font-size: 16px; flex-shrink: 0; }
+
+  #search-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+  }
+
+  #search-input::placeholder { color: var(--text-dim); }
+
+  #search-results {
+    display: none;
+    background: var(--bg-card);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    margin-top: 8px;
+    overflow: hidden;
+    max-height: 320px;
+    overflow-y: auto;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+  }
+
+  .search-result-item {
+    padding: 12px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid rgba(201,168,76,0.08);
+    transition: background 0.15s;
+  }
+
+  .search-result-item:hover { background: var(--gold-dim); }
+  .search-result-item:last-child { border-bottom: none; }
+
+  .sri-icon { font-size: 18px; }
+  .sri-info { flex: 1; min-width: 0; }
+  .sri-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sri-loc { font-size: 11px; color: var(--text-dim); }
+  .sri-cat {
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold);
+    background: var(--gold-dim); padding: 2px 8px; border-radius: 100px; white-space: nowrap;
+  }
+
+  /* ─── FILTERS ─── */
+  #filters {
+    position: absolute;
+    top: 76px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+  }
+
+  .filter-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--panel-border);
+    border-radius: 100px;
+    color: var(--text-dim);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+    backdrop-filter: blur(12px);
+    white-space: nowrap;
+  }
+
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--gold-dim);
+    border-color: var(--gold);
+    color: var(--gold-light);
+  }
+
+  /* ─── SIDE PANEL ─── */
+  #side-panel {
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: var(--sidebar-w);
+    background: var(--bg-panel);
+    border-left: 1px solid var(--panel-border);
+    backdrop-filter: blur(20px);
+    z-index: 200;
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  #side-panel.open { transform: translateX(0); }
+
+  #panel-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--panel-border);
+    flex-shrink: 0;
+  }
+
+  #panel-close {
+    position: absolute; top: 16px; right: 16px;
+    background: none;
+    border: 1px solid var(--panel-border);
+    color: var(--text-dim);
+    font-size: 18px; width: 32px; height: 32px; border-radius: 50%;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+
+  #panel-close:hover { border-color: var(--gold); color: var(--gold); }
+
+  #panel-category { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+  #panel-name { font-family: 'Cinzel', serif; font-size: 20px; font-weight: 600; color: var(--text-primary); line-height: 1.3; margin-bottom: 4px; }
+  #panel-location { font-size: 12px; color: var(--text-dim); }
+
+  #panel-meta { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+
+  .meta-tag { font-size: 11px; color: var(--text-dim); background: rgba(255,255,255,0.05); padding: 3px 10px; border-radius: 100px; border: 1px solid rgba(255,255,255,0.08); }
+  .meta-tag.gold { color: var(--gold); border-color: var(--gold-dim); background: var(--gold-dim); }
+
+  #panel-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  #panel-description { font-size: 13px; line-height: 1.7; color: rgba(240,234,214,0.75); }
+
+  .panel-section-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+
+  /* ─── GROQ AI CHAT ─── */
+  #chat-section {
+    border-top: 1px solid var(--panel-border);
+    padding: 16px;
+    flex-shrink: 0;
+  }
+
+  #chat-label-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .groq-badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #fff;
+    background: linear-gradient(90deg, #f97316, #ef4444);
+    padding: 2px 7px;
+    border-radius: 100px;
+  }
+
+  #chat-messages {
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .chat-bubble { padding: 8px 12px; border-radius: 10px; font-size: 12px; line-height: 1.5; max-width: 90%; }
+  .chat-bubble.user { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); color: var(--gold-light); align-self: flex-end; }
+  .chat-bubble.ai { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: var(--text-primary); align-self: flex-start; }
+  .chat-bubble.loading { opacity: 0.6; font-style: italic; }
+
+  #chat-input-row { display: flex; gap: 8px; }
+
+  #chat-input {
+    flex: 1;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--panel-border);
+    border-radius: 100px;
+    padding: 8px 14px;
+    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; outline: none;
+    transition: border-color 0.2s;
+  }
+
+  #chat-input:focus { border-color: var(--gold); }
+  #chat-input::placeholder { color: var(--text-dim); }
+
+  #chat-send {
+    width: 34px; height: 34px;
+    background: var(--gold);
+    border: none; border-radius: 50%;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; transition: background 0.2s, transform 0.1s; flex-shrink: 0;
+  }
+
+  #chat-send:hover { background: var(--gold-light); transform: scale(1.05); }
+
+  /* ─── NAVIGATION HUD ─── */
+  #nav-hud {
+    position: absolute;
+    bottom: 80px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    opacity: 0; pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+    z-index: 150; width: 420px;
+  }
+
+  #nav-hud.active { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+
+  #nav-card {
+    background: var(--bg-card);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  #nav-instruction { font-size: 16px; font-weight: 500; color: var(--text-primary); }
+
+  #nav-meta { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .nav-stat { font-size: 13px; }
+  .nav-stat span { color: var(--gold); font-weight: 600; }
+
+  #nav-progress { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+  #nav-progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--nav-route)); border-radius: 2px; width: 0%; transition: width 0.3s; }
+
+  #nav-steps { max-height: 100px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+  .nav-step { font-size: 11px; color: var(--text-dim); padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; gap: 8px; align-items: flex-start; }
+  .nav-step.current { color: var(--nav-route); }
+  .step-num { color: var(--gold); font-weight: 600; flex-shrink: 0; }
+
+  #nav-buttons { display: flex; gap: 8px; }
+
+  #nav-close-btn {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--panel-border);
+    color: var(--text-dim); font-size: 12px; padding: 6px 16px;
+    border-radius: 100px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+
+  #nav-close-btn:hover { border-color: var(--accent-red); color: var(--accent-red); }
+
+  /* DRONE FOLLOW BUTTON */
+  #drone-follow-btn {
+    background: rgba(79,195,247,0.12);
+    border: 1px solid rgba(79,195,247,0.35);
+    color: var(--nav-route); font-size: 12px; padding: 6px 16px;
+    border-radius: 100px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+
+  #drone-follow-btn.active {
+    background: rgba(79,195,247,0.25);
+    border-color: var(--nav-route);
+    color: #fff;
+  }
+
+  #drone-follow-btn:hover { border-color: var(--nav-route); }
+
+  /* RECENTER BUTTON */
+  #recenter-btn {
+    position: absolute;
+    bottom: 210px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    opacity: 0; pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+    z-index: 150;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--nav-route);
+    color: var(--nav-route); font-size: 13px; padding: 8px 18px;
+    border-radius: 100px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(79,195,247,0.25);
+  }
+
+  #recenter-btn.active { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  #recenter-btn:hover { background: rgba(79,195,247,0.1); }
+
+  /* ─── BOTTOM CONTROLS ─── */
+  #bottom-controls {
+    position: absolute;
+    bottom: 20px; right: 20px;
+    display: flex; flex-direction: column; gap: 8px; z-index: 100;
+  }
+
+  .map-ctrl-btn {
+    width: 40px; height: 40px;
+    background: var(--bg-card);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    color: var(--text-primary); font-size: 16px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(12px); transition: all 0.2s;
+  }
+
+  .map-ctrl-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .map-ctrl-btn.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+
+  /* ─── LEGEND ─── */
+  #legend {
+    position: absolute; bottom: 20px; left: 20px;
+    background: var(--bg-card); border: 1px solid var(--panel-border);
+    border-radius: var(--radius); padding: 12px 16px;
+    z-index: 100; backdrop-filter: blur(12px);
+  }
+
+  .legend-title { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ─── TOAST ─── */
+  #toast {
+    position: absolute; top: 76px; left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+    background: var(--bg-card); border: 1px solid var(--panel-border);
+    border-radius: 100px; padding: 8px 20px; font-size: 12px; color: var(--text-primary);
+    z-index: 999; transition: all 0.3s; pointer-events: none; white-space: nowrap;
+  }
+
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ─── UNESCO BADGE ─── */
+  .unesco-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: #fff; background: linear-gradient(135deg, #1565C0, #0D47A1);
+    padding: 3px 10px; border-radius: 100px;
+  }
+
+  /* ─── NAVIGATE BTN ─── */
+  #navigate-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--gold); color: var(--bg-dark); border: none;
+    border-radius: 100px; padding: 10px 20px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; width: 100%; justify-content: center;
+  }
+
+  #navigate-btn:hover { background: var(--gold-light); transform: translateY(-1px); }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 2px; }
+
+  /* ─── LOADING ─── */
+  #loader {
+    position: absolute; inset: 0; background: var(--bg-dark);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 9999; gap: 20px; transition: opacity 0.6s;
+  }
+
+  #loader.done { opacity: 0; pointer-events: none; visibility: hidden; }
+
+  #loader-logo { font-family: 'Cinzel', serif; font-size: 36px; font-weight: 700; color: var(--gold); text-shadow: 0 0 60px rgba(201,168,76,0.5); letter-spacing: 0.05em; }
+  #loader-sub { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); }
+
+  .loader-bar { width: 200px; height: 2px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+  .loader-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-light)); animation: loadbar 1.5s ease-in-out forwards; border-radius: 2px; }
+
+  @keyframes loadbar { from { width: 0; } to { width: 100%; } }
+
+  /* ─── MARKER POPUP ─── */
+  .maplibregl-popup-content {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--panel-border) !important;
+    border-radius: var(--radius) !important;
+    padding: 0 !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+    min-width: 200px;
+  }
+
+  .maplibregl-popup-tip { display: none !important; }
+  .maplibregl-popup-close-button { color: var(--text-dim) !important; padding: 6px 10px !important; }
+
+  .popup-inner { padding: 14px 16px; }
+  .popup-cat { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+  .popup-name { font-family: 'Cinzel', serif; font-size: 14px; color: var(--text-primary); margin-bottom: 6px; line-height: 1.3; }
+  .popup-loc { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
+  .popup-actions { display: flex; gap: 6px; }
+
+  .popup-btn {
+    flex: 1; padding: 6px 0; border-radius: 6px;
+    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; text-align: center; border: none;
+  }
+
+  .popup-btn.primary { background: var(--gold); color: var(--bg-dark); }
+  .popup-btn.primary:hover { background: var(--gold-light); }
+  .popup-btn.secondary { background: rgba(255,255,255,0.06); color: var(--text-primary); border: 1px solid var(--panel-border); }
+  .popup-btn.secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* ─── NEAR ME ─── */
+  #near-me-panel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; display: none; }
+
+  #near-me-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--accent-teal); color: #fff; border: none;
+    border-radius: 100px; padding: 10px 20px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 20px rgba(46,155,143,0.4);
+  }
+
+  #near-me-btn:hover { background: #3DB8AB; transform: translateY(-1px); }
+
+  /* ─── DRONE INDICATOR ─── */
+  #drone-indicator {
+    position: absolute; top: 76px; right: 20px; z-index: 150;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(79,195,247,0.12); border: 1px solid rgba(79,195,247,0.35);
+    border-radius: 100px; padding: 6px 12px; font-size: 11px; color: var(--nav-route);
+    opacity: 0; transform: translateY(-8px);
+    transition: all 0.3s; pointer-events: none;
+  }
+
+  #drone-indicator.active { opacity: 1; transform: translateY(0); }
+
+  @keyframes droneRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .drone-spin { display: inline-block; }
+  #drone-indicator.active .drone-spin { animation: droneRotate 2s linear infinite; }
+
+  /* MapLibre smooth zoom */
+  .maplibregl-ctrl-zoom-in button,
+  .maplibregl-ctrl-zoom-out button { transition: background 0.15s; }
+
+  /* ─── DORA CHAT ─── */
+  #dora-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(201,168,76,0.08), rgba(201,168,76,0.03));
+    border-bottom: 1px solid var(--panel-border);
+    margin: -16px -16px 12px -16px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  #dora-avatar {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #C9A84C, #E8C96B);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    box-shadow: 0 0 12px rgba(201,168,76,0.4);
+  }
+
+  #dora-intro { flex: 1; }
+
+  #dora-name {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gold);
+    line-height: 1.2;
+  }
+
+  #dora-tagline {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  #dora-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: #4CAF50;
+    letter-spacing: 0.04em;
+  }
+
+  .dora-dot {
+    width: 6px; height: 6px;
+    background: #4CAF50;
+    border-radius: 50%;
+    display: inline-block;
+    animation: doraPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes doraPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+
+  .dora-greeting {
+    background: linear-gradient(135deg, rgba(201,168,76,0.1), rgba(201,168,76,0.04));
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 10px 10px 10px 2px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+
+  /* ════════════════════════════════════════════════════════
+     RESPONSIVE — TABLET (≤ 768px) & MOBILE (≤ 480px)
+     ════════════════════════════════════════════════════════ */
+
+  @media (max-width: 768px) {
+    /* Search bar — full width on tablet */
+    #search-container {
+      width: calc(100% - 40px);
+      left: 20px;
+      transform: none;
+      top: 70px;
+    }
+
+    /* Nav HUD — full width */
+    #nav-hud { width: calc(100% - 32px); left: 16px; transform: translateY(20px); bottom: 100px; }
+    #nav-hud.active { transform: translateY(0); }
+
+    /* Side panel — full screen slide up from bottom on tablet */
+    #side-panel {
+      width: 100%;
+      top: auto;
+      height: 80vh;
+      border-left: none;
+      border-top: 1px solid var(--panel-border);
+      border-radius: 20px 20px 0 0;
+      transform: translateY(100%);
+    }
+    #side-panel.open { transform: translateY(0); }
+
+    /* Filters — horizontal scroll row */
+    #filters {
+      top: auto;
+      bottom: 90px;
+      left: 0; right: 0;
+      flex-direction: row;
+      overflow-x: auto;
+      padding: 0 16px;
+      gap: 6px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    #filters::-webkit-scrollbar { display: none; }
+    .filter-btn { flex-shrink: 0; font-size: 11px; padding: 6px 12px; }
+
+    /* Legend — hide on tablet, too cramped */
+    #legend { display: none; }
+
+    /* Bottom controls — move up above filters */
+    #bottom-controls { bottom: 148px; right: 12px; }
+
+    /* Drone indicator — top left instead of right (avoids Sanskriti button) */
+    #drone-indicator { right: auto; left: 16px; }
+
+    /* Topbar — shrink Sanskriti button label */
+    .ss-eyebrow { display: none; }
+    .ss-title { font-size: 11px; }
+    #ss-feature-btn { padding: 6px 12px 6px 8px; }
+    .ss-icon-wrap { width: 24px; height: 24px; font-size: 12px; }
+
+    /* Recenter btn */
+    #recenter-btn { bottom: 250px; font-size: 12px; padding: 7px 14px; }
+  }
+
+  @media (max-width: 480px) {
+    /* Topbar */
+    #logo { font-size: 17px; }
+    #site-count { display: none; }
+    .divider-v { display: none; }
+
+    /* Search */
+    #search-container { width: calc(100% - 24px); left: 12px; top: 66px; }
+    #search-input { font-size: 13px; }
+
+    /* Side panel — nearly full screen */
+    #side-panel { height: 88vh; }
+    #panel-name { font-size: 17px; }
+
+    /* Nav HUD */
+    #nav-hud { width: calc(100% - 24px); left: 12px; bottom: 90px; }
+    #nav-card { padding: 12px 14px; gap: 8px; }
+    #nav-instruction { font-size: 14px; }
+    #nav-buttons { flex-wrap: wrap; }
+    #drone-follow-btn, #nav-close-btn { font-size: 11px; padding: 5px 12px; }
+
+    /* Filters — even more compact */
+    #filters { bottom: 80px; padding: 0 12px; gap: 5px; }
+    .filter-btn { font-size: 10px; padding: 5px 10px; }
+
+    /* Bottom controls */
+    #bottom-controls { bottom: 136px; right: 10px; gap: 6px; }
+    .map-ctrl-btn { width: 36px; height: 36px; font-size: 14px; }
+
+    /* Recenter */
+    #recenter-btn { bottom: 240px; font-size: 11px; padding: 6px 12px; }
+
+    /* Dora chat */
+    #dora-header { padding: 10px 12px; }
+    #dora-name { font-size: 13px; }
+    #chat-messages { max-height: 140px; }
+
+    /* Popup — full width */
+    .maplibregl-popup-content { min-width: 180px !important; }
+    .popup-name { font-size: 13px; }
+  }
+
+  /* Tablet landscape — side panel stays as sidebar but narrower */
+  @media (min-width: 481px) and (max-width: 768px) and (orientation: landscape) {
+    #side-panel {
+      width: 300px;
+      height: 100%;
+      top: 0;
+      border-radius: 0;
+      border-left: 1px solid var(--panel-border);
+      border-top: none;
+      transform: translateX(100%);
+    }
+    #side-panel.open { transform: translateX(0); }
+    #filters {
+      bottom: auto;
+      top: 70px;
+      left: 16px;
+      flex-direction: column;
+      width: auto;
+      overflow-x: visible;
+    }
+    .filter-btn { flex-shrink: 1; }
+  }
+
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div id="loader-logo">Heritage Map</div>
+  <div id="loader-sub">India's Living Heritage</div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<div id="map"></div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div id="logo">Heritage<span> Map</span></div>
+  <div class="divider-v"></div>
+  <div id="site-count">Loading sites...</div>
+  <a id="ss-feature-btn" href="https://sanskriti-sphere-2.onrender.com/" target="_blank" rel="noopener">
+    <div class="ss-icon-wrap">🕌</div>
+    <div class="ss-label-wrap">
+      <span class="ss-eyebrow">Explore More</span>
+      <span class="ss-title">Sanskriti Sphere</span>
+    </div>
+    <span class="ss-arrow">↗</span>
+  </a>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- SEARCH -->
+<div id="search-container">
+  <div id="search-wrap">
+    <span id="search-icon">⌕</span>
+    <input id="search-input" type="text" placeholder="Search heritage sites, temples, forts...">
+  </div>
+  <div id="search-results"></div>
+</div>
+
+<!-- FILTERS -->
+<div id="filters">
+  <button class="filter-btn active" data-cat="all">🏛 All Sites</button>
+  <button class="filter-btn" data-cat="temple">🕌 Temples</button>
+  <button class="filter-btn" data-cat="fort">🏰 Forts &amp; Palaces</button>
+  <button class="filter-btn" data-cat="monument">🗿 Monuments</button>
+  <button class="filter-btn" data-cat="cave">🪨 Caves</button>
+  <button class="filter-btn" data-cat="unesco">🏅 UNESCO</button>
+  <button class="filter-btn" data-cat="religious">☸️ Religious</button>
+  <button class="filter-btn" data-cat="stepwell">💧 Stepwells</button>
+</div>
+
+<!-- DRONE FOLLOW INDICATOR -->
+<div id="drone-indicator">
+  <span class="drone-spin">🚁</span>
+  <span>Drone Following</span>
+</div>
+
+<!-- SIDE PANEL -->
+<div id="side-panel">
+  <div id="panel-header">
+    <button id="panel-close">✕</button>
+    <div id="panel-category"></div>
+    <div id="panel-name"></div>
+    <div id="panel-location"></div>
+    <div id="panel-meta"></div>
+  </div>
+  <div id="panel-body">
+    <div id="panel-description"></div>
+    <div id="panel-extras"></div>
+    <button id="navigate-btn">🧭 Navigate Here</button>
+  </div>
+  <div id="chat-section">
+    <div id="dora-header">
+      <div id="dora-avatar">🦋</div>
+      <div id="dora-intro">
+        <div id="dora-name">Dora</div>
+        <div id="dora-tagline">Your heritage guide</div>
+      </div>
+      <div id="dora-status"><span class="dora-dot"></span>Online</div>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-row">
+      <input id="chat-input" type="text" placeholder="Ask Dora anything about this site...">
+      <button id="chat-send">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAVIGATION HUD -->
+<div id="nav-hud">
+  <div id="nav-card">
+    <div id="nav-instruction">Calculating route...</div>
+    <div id="nav-meta">
+      <div class="nav-stat">📍 <span id="nav-dist">—</span></div>
+      <div class="nav-stat">⏱ <span id="nav-eta">—</span></div>
+      <div class="nav-stat" id="nav-step-counter" style="color:var(--text-dim)"></div>
+    </div>
+    <div id="nav-progress"><div id="nav-progress-fill"></div></div>
+    <div id="nav-steps"></div>
+    <div id="nav-buttons">
+      <button id="drone-follow-btn">🚁 Drone Follow</button>
+      <button id="nav-close-btn">End Navigation</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECENTER BUTTON (visible during navigation) -->
+<button id="recenter-btn">🎯 Re-center on Route</button>
+
+<!-- BOTTOM CONTROLS -->
+<div id="bottom-controls">
+  <button class="map-ctrl-btn" id="btn-3d" title="Toggle 3D">⬡</button>
+  <button class="map-ctrl-btn" id="btn-location" title="My Location">◎</button>
+  <button class="map-ctrl-btn" id="btn-globe" title="Globe View">🌐</button>
+</div>
+
+<!-- LEGEND -->
+<div id="legend">
+  <div class="legend-title">Categories</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#E8A045"></div>Temples</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#E05252"></div>Forts &amp; Palaces</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#5B9BD5"></div>Monuments</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#7E6F9B"></div>Caves</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4CAF50"></div>Religious</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#26A69A"></div>Stepwells</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#FFD700;border:1px solid #aaa"></div>UNESCO</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  HERITAGE DATA
+// ════════════════════════════════════════════════════════
+const HERITAGE_SITES = [
+  { id:1,  name:"Taj Mahal", state:"Uttar Pradesh", city:"Agra", lat:27.1751, lng:78.0421, cat:"monument", era:"1632 CE", dynasty:"Mughal", unesco:true, desc:"An ivory-white marble mausoleum on the south bank of the Yamuna river, built by Mughal emperor Shah Jahan in memory of his beloved wife Mumtaz Mahal. Regarded as the finest example of Mughal architecture, a UNESCO World Heritage Site since 1983." },
+  { id:2,  name:"Agra Fort", state:"Uttar Pradesh", city:"Agra", lat:27.1795, lng:78.0211, cat:"fort", era:"1565 CE", dynasty:"Mughal", unesco:true, desc:"A UNESCO World Heritage Site, this massive fort served as the main residence of the emperors of the Mughal dynasty until 1638. The fort's red sandstone walls enclose palatial buildings that blend Hindu and Islamic architectural styles." },
+  { id:3,  name:"Fatehpur Sikri", state:"Uttar Pradesh", city:"Fatehpur Sikri", lat:27.0945, lng:77.6642, cat:"fort", era:"1570 CE", dynasty:"Mughal", unesco:true, desc:"A city built by Emperor Akbar as his capital, abandoned after only 14 years due to water scarcity. The remarkably preserved complex is a stunning example of Mughal architecture blending Hindu and Islamic elements." },
+  { id:4,  name:"Qutub Minar", state:"Delhi", city:"New Delhi", lat:28.5245, lng:77.1855, cat:"monument", era:"1193 CE", dynasty:"Delhi Sultanate", unesco:true, desc:"The tallest minaret in India at 72.5 meters, built of red sandstone and marble. A UNESCO World Heritage Site, it is surrounded by several other ancient and medieval structures collectively known as the Qutb complex." },
+  { id:5,  name:"Red Fort", state:"Delhi", city:"New Delhi", lat:28.6562, lng:77.2410, cat:"fort", era:"1648 CE", dynasty:"Mughal", unesco:true, desc:"A historic fort complex that served as the main residence of the Mughal Emperors. Built by Emperor Shah Jahan, the fort's massive red sandstone walls enclose luxurious marble pavilions inlaid with precious stones." },
+  { id:6,  name:"Humayun's Tomb", state:"Delhi", city:"New Delhi", lat:28.5933, lng:77.2507, cat:"monument", era:"1565 CE", dynasty:"Mughal", unesco:true, desc:"The tomb of Mughal Emperor Humayun, commissioned by his wife Bega Begum. The first garden-tomb on the Indian subcontinent, it inspired several major architectural works including the Taj Mahal." },
+  { id:7,  name:"Ajanta Caves", state:"Maharashtra", city:"Aurangabad", lat:20.5519, lng:75.7033, cat:"cave", era:"2nd century BCE", dynasty:"Various", unesco:true, desc:"Thirty rock-cut Buddhist cave monuments dating from the 2nd century BCE to about 480 CE. The caves include paintings and rock-cut sculptures described as among the finest surviving examples of ancient Indian art." },
+  { id:8,  name:"Ellora Caves", state:"Maharashtra", city:"Aurangabad", lat:20.0268, lng:75.1780, cat:"cave", era:"6th century CE", dynasty:"Rashtrakuta/Chalukya", unesco:true, desc:"A UNESCO World Heritage Site featuring 34 monasteries and temples. The site demonstrates the religious harmony of Buddhism, Hinduism, and Jainism, with the Kailasa Temple being the world's largest monolithic structure." },
+  { id:9,  name:"Elephanta Caves", state:"Maharashtra", city:"Mumbai", lat:18.9633, lng:72.9315, cat:"cave", era:"5th-8th century CE", dynasty:"Chalukya", unesco:true, desc:"A collection of cave temples predominantly dedicated to the Hindu god Shiva. The main cave contains large high-reliefs depicting various aspects of Shiva, including the massive Trimurti sculpture." },
+  { id:10, name:"Hampi", state:"Karnataka", city:"Hampi", lat:15.3350, lng:76.4600, cat:"monument", era:"14th-16th century CE", dynasty:"Vijayanagara", unesco:true, desc:"The ruins of Vijayanagara, the former capital of the Vijayanagara Empire. The site features over 1,600 surviving remains including forts, royal and sacred complexes, temples, shrines, and water structures." },
+  { id:11, name:"Pattadakal", state:"Karnataka", city:"Bagalkot", lat:15.9490, lng:75.8175, cat:"temple", era:"7th-8th century CE", dynasty:"Chalukya", unesco:true, desc:"A complex of 8th century Hindu and Jain temples representing the high point of early Chalukyan architecture." },
+  { id:12, name:"Khajuraho", state:"Madhya Pradesh", city:"Chhatarpur", lat:24.8518, lng:79.9199, cat:"temple", era:"950-1050 CE", dynasty:"Chandela", unesco:true, desc:"A group of Hindu and Jain temples famous for their nagara-style architectural symbolism and erotic sculptures." },
+  { id:13, name:"Sanchi Stupa", state:"Madhya Pradesh", city:"Raisen", lat:23.4791, lng:77.7402, cat:"religious", era:"3rd century BCE", dynasty:"Maurya", unesco:true, desc:"The oldest stone structure in India, built by Emperor Ashoka. The Great Stupa is adorned with four elaborately carved toranas depicting the life of the Buddha." },
+  { id:14, name:"Rock Shelters of Bhimbetka", state:"Madhya Pradesh", city:"Raisen", lat:22.9393, lng:77.6136, cat:"cave", era:"30,000 BCE", dynasty:"Prehistoric", unesco:true, desc:"A series of rock shelters exhibiting the earliest traces of human life on the Indian subcontinent with 30,000 year old rock paintings." },
+  { id:15, name:"Sun Temple Konark", state:"Odisha", city:"Puri", lat:19.8876, lng:86.0945, cat:"temple", era:"1250 CE", dynasty:"Eastern Ganga", unesco:true, desc:"A 13th century temple dedicated to the Sun god Surya, designed in the shape of an enormous chariot with 24 elaborately carved stone wheels." },
+  { id:16, name:"Mahabalipuram", state:"Tamil Nadu", city:"Kanchipuram", lat:12.6269, lng:80.1927, cat:"monument", era:"7th-8th century CE", dynasty:"Pallava", unesco:true, desc:"A collection of 7th and 8th century CE monuments carved out of rock along the shore of the Bay of Bengal." },
+  { id:17, name:"Brihadeeswara Temple", state:"Tamil Nadu", city:"Thanjavur", lat:10.7828, lng:79.1318, cat:"temple", era:"1010 CE", dynasty:"Chola", unesco:true, desc:"A magnificent Chola temple dedicated to Shiva, built by Raja Raja Chola I. The vimana (tower) is 66 metres tall, making it one of the tallest in the world." },
+  { id:18, name:"Gangaikonda Cholapuram", state:"Tamil Nadu", city:"Ariyalur", lat:11.2076, lng:79.4500, cat:"temple", era:"1035 CE", dynasty:"Chola", unesco:true, desc:"Built by Rajendra Chola I to commemorate his victorious military campaign to the banks of the Ganges." },
+  { id:19, name:"Bodh Gaya", state:"Bihar", city:"Gaya", lat:24.6961, lng:84.9913, cat:"religious", era:"3rd century BCE", dynasty:"Maurya", unesco:true, desc:"The holiest of Buddhist pilgrimage sites, the place where Siddhartha Gautama attained Enlightenment under the Bodhi Tree." },
+  { id:20, name:"Nalanda Mahavihara", state:"Bihar", city:"Nalanda", lat:25.1355, lng:85.4432, cat:"monument", era:"5th century CE", dynasty:"Gupta", unesco:true, desc:"The ruins of the most renowned monastic-cum-educational institution of ancient India, considered one of the greatest universities of the ancient world." },
+  { id:21, name:"Champaner-Pavagadh", state:"Gujarat", city:"Panchmahal", lat:22.4868, lng:73.5329, cat:"fort", era:"15th century CE", dynasty:"Gujarat Sultanate", unesco:true, desc:"An archaeological park containing a largely unexcavated pre-Muslim and Sultanate period city." },
+  { id:22, name:"Rani-ki-Vav", state:"Gujarat", city:"Patan", lat:23.8593, lng:72.1016, cat:"stepwell", era:"11th century CE", dynasty:"Solanki", unesco:true, desc:"An intricately constructed stepwell on the banks of the Saraswati River with more than 500 principal sculptures." },
+  { id:23, name:"Chittorgarh Fort", state:"Rajasthan", city:"Chittorgarh", lat:24.8887, lng:74.6269, cat:"fort", era:"7th century CE", dynasty:"Maurya/Rajput", unesco:true, desc:"The largest fort in India and a symbol of Rajput chivalry and sacrifice, witnessing three great sieges." },
+  { id:24, name:"Kumbhalgarh Fort", state:"Rajasthan", city:"Rajsamand", lat:25.1522, lng:73.5875, cat:"fort", era:"15th century CE", dynasty:"Sisodia Rajput", unesco:true, desc:"A Mewar fortress with the world's second longest wall after the Great Wall of China at 38 km." },
+  { id:25, name:"Jaisalmer Fort", state:"Rajasthan", city:"Jaisalmer", lat:26.9124, lng:70.9109, cat:"fort", era:"1156 CE", dynasty:"Bhati Rajput", unesco:true, desc:"One of the largest fully preserved fortified cities in the world, known as the Golden Fort for its yellow sandstone." },
+  { id:26, name:"Amber Fort", state:"Rajasthan", city:"Jaipur", lat:26.9855, lng:75.8513, cat:"fort", era:"1592 CE", dynasty:"Kachwaha Rajput", unesco:true, desc:"A beautiful fort complex near Jaipur. Famous for the Sheesh Mahal (Hall of Mirrors) where thousands of mirrors are embedded in the walls." },
+  { id:27, name:"Jantar Mantar Jaipur", state:"Rajasthan", city:"Jaipur", lat:26.9249, lng:75.8243, cat:"monument", era:"1734 CE", dynasty:"Maharaja Jai Singh II", unesco:true, desc:"An astronomical observation site featuring 19 major geometric devices for measuring time, predicting eclipses, tracking stars." },
+  { id:28, name:"Historic Ahmedabad", state:"Gujarat", city:"Ahmedabad", lat:23.0225, lng:72.5714, cat:"monument", era:"15th century CE", dynasty:"Gujarat Sultanate", unesco:true, desc:"The walled city of Ahmedabad was inscribed as a UNESCO World Heritage Site in 2017." },
+  { id:29, name:"Jaipur City", state:"Rajasthan", city:"Jaipur", lat:26.9124, lng:75.7873, cat:"monument", era:"1727 CE", dynasty:"Kachwaha Rajput", unesco:true, desc:"The first planned city of India, designed by Vidyadhar Bhattacharya for Maharaja Jai Singh II." },
+  { id:30, name:"Dholavira", state:"Gujarat", city:"Kutch", lat:23.8876, lng:70.2168, cat:"monument", era:"3000-1500 BCE", dynasty:"Indus Valley", unesco:true, desc:"One of the five largest Harappan sites, featuring complex urban planning of the Indus Valley Civilization." },
+  { id:31, name:"Hoysala Temples Belur", state:"Karnataka", city:"Hassan", lat:13.1636, lng:75.8636, cat:"temple", era:"1117 CE", dynasty:"Hoysala", unesco:true, desc:"The Chennakeshava Temple at Belur is a masterpiece of Hoysala architecture with intricate friezes." },
+  { id:32, name:"Hoysala Temples Halebid", state:"Karnataka", city:"Hassan", lat:13.2128, lng:75.9945, cat:"temple", era:"12th century CE", dynasty:"Hoysala", unesco:true, desc:"The Hoysaleshwara Temple at Halebid features thousands of sculptures arranged in horizontal friezes." },
+  { id:33, name:"Meenakshi Amman Temple", state:"Tamil Nadu", city:"Madurai", lat:9.9195, lng:78.1193, cat:"temple", era:"17th century CE", dynasty:"Nayak", desc:"One of the most magnificent temple complexes in India, dedicated to Goddess Meenakshi with 14 towering gopurams." },
+  { id:34, name:"Tirupati Venkateswara Temple", state:"Andhra Pradesh", city:"Tirupati", lat:13.6834, lng:79.3470, cat:"temple", era:"3rd century CE", dynasty:"Various", desc:"One of the most visited religious sites in the world, with over 50,000 devotees visiting daily." },
+  { id:35, name:"Ranganathaswamy Temple", state:"Tamil Nadu", city:"Srirangam", lat:10.8613, lng:78.6875, cat:"temple", era:"10th century CE", dynasty:"Chola", desc:"The largest functioning Hindu temple in the world, covering an area of 156 acres with 21 gopurams." },
+  { id:36, name:"Rameshwaram Temple", state:"Tamil Nadu", city:"Ramanathapuram", lat:9.2885, lng:79.3170, cat:"temple", era:"12th century CE", dynasty:"Pandya", desc:"One of the four dhams in Hinduism, famous for its magnificent corridors — the longest temple corridor in the world at 1,220 metres." },
+  { id:37, name:"Somnath Temple", state:"Gujarat", city:"Gir Somnath", lat:20.8880, lng:70.4017, cat:"temple", era:"Ancient (rebuilt 7 times)", dynasty:"Various", desc:"One of the twelve Jyotirlinga shrines of Shiva, destroyed and rebuilt multiple times. The current temple was built in 1951." },
+  { id:38, name:"Golden Temple", state:"Punjab", city:"Amritsar", lat:31.6200, lng:74.8765, cat:"religious", era:"1604 CE", dynasty:"Sikh", desc:"The holiest Gurdwara, the Harmandir Sahib is surrounded by the Amrit Sarovar and serves free meals to over 100,000 people daily." },
+  { id:39, name:"Varanasi Ghats", state:"Uttar Pradesh", city:"Varanasi", lat:25.3176, lng:83.0062, cat:"religious", era:"Ancient", dynasty:"Various", desc:"The ancient city on the banks of the Ganges is one of the world's oldest continuously inhabited cities with 88 sacred ghats." },
+  { id:40, name:"Jagannath Temple Puri", state:"Odisha", city:"Puri", lat:19.8042, lng:85.8181, cat:"temple", era:"12th century CE", dynasty:"Eastern Ganga", desc:"One of the four dhams of Hinduism, famous for the annual Rath Yatra. The temple has a 65-metre high spire." },
+  { id:41, name:"Lepakshi Temple", state:"Andhra Pradesh", city:"Anantapur", lat:13.7943, lng:77.6069, cat:"temple", era:"1538 CE", dynasty:"Vijayanagara", desc:"A remarkable Vijayanagara temple featuring an unfinished pillar that does not touch the ground and the world's largest monolithic Nandi." },
+  { id:42, name:"Badami Cave Temples", state:"Karnataka", city:"Bagalkot", lat:15.9185, lng:75.6876, cat:"cave", era:"6th century CE", dynasty:"Chalukya", desc:"Four cave temples carved out of red sandstone cliffs with some of the finest examples of early Chalukyan art." },
+  { id:43, name:"Mehrangarh Fort", state:"Rajasthan", city:"Jodhpur", lat:26.2974, lng:73.0165, cat:"fort", era:"1459 CE", dynasty:"Rathore Rajput", desc:"One of the largest forts in India, perched 125 metres above the Blue City of Jodhpur." },
+  { id:44, name:"Golconda Fort", state:"Telangana", city:"Hyderabad", lat:17.3833, lng:78.4011, cat:"fort", era:"13th century CE", dynasty:"Kakatiya/Qutb Shahi", desc:"A magnificent fortress city famous for its acoustic effects and the source of the world's most famous diamonds including the Koh-i-Noor." },
+  { id:45, name:"Gwalior Fort", state:"Madhya Pradesh", city:"Gwalior", lat:26.2295, lng:78.1685, cat:"fort", era:"8th century CE", dynasty:"Various", desc:"One of the most impregnable fortresses in India, described by Babur as the 'pearl amongst fortresses'." },
+  { id:46, name:"Mysore Palace", state:"Karnataka", city:"Mysore", lat:12.3052, lng:76.6551, cat:"fort", era:"1912 CE", dynasty:"Wadiyar", desc:"The official residence and seat of the Wadiyars, illuminated by nearly 100,000 light bulbs on Sundays and public holidays." },
+  { id:47, name:"Charminar", state:"Telangana", city:"Hyderabad", lat:17.3616, lng:78.4747, cat:"monument", era:"1591 CE", dynasty:"Qutb Shahi", desc:"An iconic monument and mosque built in 1591 by Muhammad Quli Qutb Shah to commemorate the end of a deadly plague." },
+  { id:48, name:"Hawa Mahal", state:"Rajasthan", city:"Jaipur", lat:26.9239, lng:75.8267, cat:"monument", era:"1799 CE", dynasty:"Kachwaha Rajput", desc:"The Palace of Winds built of red and pink sandstone with 953 small windows (jharokhas) for royal ladies to observe street festivals." },
+  { id:49, name:"Gateway of India", state:"Maharashtra", city:"Mumbai", lat:18.9220, lng:72.8347, cat:"monument", era:"1924 CE", dynasty:"British Raj", desc:"A basalt arch monument overlooking Mumbai Harbour, also the site from which the last British troops departed India in 1948." },
+  { id:50, name:"Victoria Memorial", state:"West Bengal", city:"Kolkata", lat:22.5448, lng:88.3426, cat:"monument", era:"1921 CE", dynasty:"British Raj", desc:"A large marble building built in memory of Queen Victoria, now housing a museum with magnificent collections from the British period." },
+  { id:51, name:"India Gate", state:"Delhi", city:"New Delhi", lat:28.6129, lng:77.2295, cat:"monument", era:"1931 CE", dynasty:"British Raj", desc:"A war memorial built to honor 82,000 soldiers of the British Indian Army who died during the First World War." },
+  { id:52, name:"Kailasa Temple Ellora", state:"Maharashtra", city:"Aurangabad", lat:20.0267, lng:75.1813, cat:"cave", era:"8th century CE", dynasty:"Rashtrakuta", desc:"The largest rock-cut structure in the world, the Kailasa temple was entirely carved from a single basalt cliff requiring the removal of 200,000 tonnes of rock." },
+  { id:53, name:"Chand Baori", state:"Rajasthan", city:"Dausa", lat:27.0118, lng:76.6033, cat:"stepwell", era:"9th century CE", dynasty:"Nikumbha Rajput", desc:"One of the deepest and largest stepwells in India, with 3,500 narrow steps arranged in perfect geometric symmetry descending 20 metres." },
+  { id:54, name:"Adalaj Stepwell", state:"Gujarat", city:"Ahmedabad", lat:23.1701, lng:72.5804, cat:"stepwell", era:"1499 CE", dynasty:"Vora Rajput", desc:"A five-storey deep stepwell built in the Indo-Islamic style with walls covered with intricate carvings." },
+  { id:55, name:"Golden Temple Amritsar", state:"Punjab", city:"Amritsar", lat:31.6200, lng:74.8765, cat:"religious", era:"1604 CE", dynasty:"Sikh", desc:"The spiritual and cultural centre of Sikhism, the Darbar Sahib is one of the most visited places of worship in the world." },
+  { id:56, name:"Sarnath", state:"Uttar Pradesh", city:"Varanasi", lat:25.3811, lng:83.0235, cat:"religious", era:"3rd century BCE", dynasty:"Maurya", desc:"One of the four most important Buddhist pilgrimage sites, where the Buddha delivered his first sermon after attaining Enlightenment." },
+  { id:57, name:"Bodh Gaya Mahabodhi Temple", state:"Bihar", city:"Gaya", lat:24.6961, lng:84.9913, cat:"religious", era:"3rd century BCE", dynasty:"Maurya", desc:"The holiest Buddhist site, where Siddhartha Gautama attained Enlightenment under the sacred Bodhi Tree." },
+  { id:58, name:"Amarnath Cave", state:"Jammu & Kashmir", city:"Anantnag", lat:34.2143, lng:75.5067, cat:"religious", era:"Ancient", dynasty:"Natural", desc:"A Hindu shrine at 3,888 metres containing a naturally formed ice Shiva lingam that waxes and wanes with the moon." },
+  { id:59, name:"Kedarnath Temple", state:"Uttarakhand", city:"Rudraprayag", lat:30.7352, lng:79.0669, cat:"temple", era:"8th century CE", dynasty:"Adi Shankara", desc:"One of the twelve Jyotirlinga shrines situated at 3,583 metres in the Garhwal Himalayas." },
+  { id:60, name:"Badrinath Temple", state:"Uttarakhand", city:"Chamoli", lat:30.7433, lng:79.4938, cat:"temple", era:"8th century CE", dynasty:"Adi Shankara", desc:"One of the four sacred dhams dedicated to Lord Vishnu situated at 3,133 metres in the Garhwal Himalayas." },
+  { id:61, name:"Ranakpur Jain Temple", state:"Rajasthan", city:"Pali", lat:25.1164, lng:73.4738, cat:"temple", era:"15th century CE", dynasty:"Rajput", desc:"A masterpiece of Jain temple architecture with 1,444 intricately carved marble pillars, each unique in design." },
+  { id:62, name:"Dilwara Temples", state:"Rajasthan", city:"Sirohi", lat:24.6003, lng:72.7180, cat:"temple", era:"11th-13th century CE", dynasty:"Chalukya", desc:"A complex of five Jain temples famous for their spectacular use of white marble, considered among the finest Jain temples in the world." },
+  { id:63, name:"Shravanabelagola", state:"Karnataka", city:"Hassan", lat:12.8574, lng:76.4889, cat:"religious", era:"10th century CE", dynasty:"Ganga", desc:"A major Jain pilgrimage site famous for the 18-metre tall monolithic statue of Gomateshwara, the world's largest monolithic statue." },
+  { id:64, name:"Basilica of Bom Jesus Goa", state:"Goa", city:"Panaji", lat:15.5009, lng:73.9116, cat:"religious", era:"1605 CE", dynasty:"Portuguese", unesco:true, desc:"A UNESCO World Heritage Site containing the mortal remains of St. Francis Xavier, built in Baroque architectural style." },
+  { id:65, name:"Padmanabhaswamy Temple", state:"Kerala", city:"Thiruvananthapuram", lat:8.4827, lng:76.9458, cat:"temple", era:"8th century CE", dynasty:"Travancore", desc:"A Hindu temple dedicated to Vishnu, famous for its gold-plated gopuram and vaults containing treasures worth over a trillion dollars." },
+  { id:66, name:"Tawang Monastery", state:"Arunachal Pradesh", city:"Tawang", lat:27.5853, lng:91.8614, cat:"religious", era:"1680 CE", dynasty:"Tibetan Buddhist", desc:"The largest monastery in India and second largest in the world, founded by Merak Lama Lodre Gyatso at 3,048 metres." },
+  { id:67, name:"Kamakhya Temple", state:"Assam", city:"Guwahati", lat:26.1666, lng:91.6985, cat:"temple", era:"8th century CE", dynasty:"Various", desc:"One of the oldest of the 51 Shakti Pithas, the Kamakhya Temple is dedicated to the goddess Kamakhya and is a centre of Tantric worship." },
+  { id:68, name:"Capitol Complex Chandigarh", state:"Punjab/Haryana", city:"Chandigarh", lat:30.7650, lng:76.8072, cat:"monument", era:"1953-1963 CE", dynasty:"Modern", unesco:true, desc:"A UNESCO World Heritage Site designed by Le Corbusier, representing one of the most important examples of modern architecture." },
+  { id:69, name:"Santiniketan", state:"West Bengal", city:"Birbhum", lat:23.6836, lng:87.6791, cat:"monument", era:"1863 CE", dynasty:"Tagore", unesco:true, desc:"A UNESCO World Heritage Site (2023), Santiniketan was the ashram founded by Rabindranath Tagore where nature, education, and the arts interweave." },
+  { id:70, name:"Brihadeeswara Temple Thanjavur", state:"Tamil Nadu", city:"Thanjavur", lat:10.7828, lng:79.1318, cat:"temple", era:"1010 CE", dynasty:"Chola", desc:"One of the largest temples in India, built by Raja Raja Chola I. The vimana soars to 66 metres and the shadow of its finial does not fall on the ground." },
+  { id:71, name:"Kapaleeshwarar Temple", state:"Tamil Nadu", city:"Chennai", lat:13.0334, lng:80.2688, cat:"temple", era:"7th century CE (rebuilt 16th c.)", dynasty:"Pallava/Nayak", desc:"An ancient Shiva temple with a magnificent 37-metre gopuram. The temple tank is called Kapali Theertham." },
+  { id:72, name:"Vittala Temple Hampi", state:"Karnataka", city:"Hampi", lat:15.3354, lng:76.4731, cat:"temple", era:"15th century CE", dynasty:"Vijayanagara", desc:"Famous for its stone chariot and the musical pillars that resonate different notes when tapped." },
+  { id:73, name:"Khajuraho Western Group", state:"Madhya Pradesh", city:"Chhatarpur", lat:24.8518, lng:79.9199, cat:"temple", era:"950-1050 CE", dynasty:"Chandela", desc:"The western group of temples at Khajuraho representing the finest examples of medieval temple architecture." },
+  { id:74, name:"Darasuram Airavatesvara Temple", state:"Tamil Nadu", city:"Kumbakonam", lat:10.9551, lng:79.3569, cat:"temple", era:"12th century CE", dynasty:"Chola", desc:"A Chola-era masterpiece dedicated to Shiva, part of the UNESCO-listed Great Living Chola Temples." },
+  { id:75, name:"Modhera Sun Temple", state:"Gujarat", city:"Mehsana", lat:23.5845, lng:72.1291, cat:"temple", era:"1026 CE", dynasty:"Solanki", desc:"A sun temple built during the reign of Bhima I of the Chaulukya dynasty. The temple is aligned so that the first rays of the sun at the equinoxes illuminate the shrine." },
+  { id:76, name:"Raigad Fort", state:"Maharashtra", city:"Raigad", lat:18.2329, lng:73.4443, cat:"fort", era:"1674 CE", dynasty:"Maratha", desc:"The capital of Chhatrapati Shivaji Maharaj's Maratha Empire, where Shivaji was coronated in 1674." },
+  { id:77, name:"Gol Gumbaz", state:"Karnataka", city:"Bijapur", lat:16.8308, lng:75.7306, cat:"monument", era:"1656 CE", dynasty:"Adil Shahi", desc:"The mausoleum of Mohammed Adil Shah features the world's second largest dome. The Whispering Gallery amplifies every whisper across the dome." },
+  { id:78, name:"Nahargarh Fort", state:"Rajasthan", city:"Jaipur", lat:26.9445, lng:75.8116, cat:"fort", era:"1734 CE", dynasty:"Kachwaha Rajput", desc:"Built on the edge of the Aravalli Hills overlooking Jaipur, the fort provided strong defense for the city." },
+  { id:79, name:"Chhatrapati Shivaji Terminus", state:"Maharashtra", city:"Mumbai", lat:18.9398, lng:72.8355, cat:"monument", era:"1888 CE", dynasty:"British Raj", unesco:true, desc:"A UNESCO World Heritage Site, this Victorian Gothic Revival building is the headquarters of the Central Railways." },
+  { id:80, name:"Rani-ki-Vav Patan", state:"Gujarat", city:"Patan", lat:23.8593, lng:72.1016, cat:"stepwell", era:"11th century CE", dynasty:"Solanki", unesco:true, desc:"The most elaborately constructed stepwell in India, built in the Maru-Gurjara architectural style." },
+];
+
+// ════════════════════════════════════════════════════════
+//  CATEGORY COLORS & ICONS
+// ════════════════════════════════════════════════════════
+const CAT_COLORS = {
+  temple: '#E8A045', fort: '#E05252', monument: '#5B9BD5',
+  cave: '#7E6F9B', religious: '#4CAF50', stepwell: '#26A69A', default: '#C9A84C'
+};
+
+const CAT_ICONS = {
+  temple: '🕌', fort: '🏰', monument: '🗿', cave: '🪨',
+  religious: '☸️', stepwell: '💧', default: '🏛'
+};
+
+// ════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════
+let map, activePopup = null, currentSite = null, activeFilter = 'all';
+let userMarker = null, routeActive = false;
+let allMarkers = [];
+let droneFollowActive = false;
+let droneFollowInterval = null;
+let userGeoWatcher = null;
+let lastUserPos = null;
+let routeCoords = null;
+let navStepIndex = 0;
+let currentProjection = 'mercator';
+
+// ════════════════════════════════════════════════════════
+//  INLINE MAP STYLE
+// ════════════════════════════════════════════════════════
+const MAP_STYLE = {
+  version: 8,
+  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+  sprite: 'https://openmaptiles.github.io/osm-bright-gl-style/sprite',
+  sources: {
+    'osm-tiles': {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: '© OpenStreetMap contributors',
+      maxzoom: 19
+    },
+    'osm-vector': {
+      type: 'vector',
+      url: 'https://tiles.openfreemap.org/planet',
+      attribution: '© OpenFreeMap © OpenMapTiles © OpenStreetMap contributors'
+    }
+  },
+  layers: [
+    { id: 'background', type: 'background', paint: { 'background-color': '#1a1f2e' } },
+    {
+      id: 'base-tiles',
+      type: 'raster',
+      source: 'osm-tiles',
+      paint: {
+        'raster-opacity': 0.85,
+        'raster-saturation': -0.3,
+        'raster-brightness-min': 0.05,
+        'raster-brightness-max': 0.7,
+        'raster-contrast': 0.1,
+        'raster-fade-duration': 300
+      }
+    },
+    {
+      id: '3d-buildings',
+      type: 'fill-extrusion',
+      source: 'osm-vector',
+      'source-layer': 'building',
+      minzoom: 13,
+      paint: {
+        'fill-extrusion-color': ['interpolate', ['linear'], ['zoom'], 13, '#2a2f3e', 15, '#343a4d'],
+        'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'render_height']],
+        'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'render_min_height']],
+        'fill-extrusion-opacity': 0.8
+      }
+    }
+  ]
+};
+
+// ════════════════════════════════════════════════════════
+//  MAP INIT
+// ════════════════════════════════════════════════════════
+function initMap() {
+  map = new maplibregl.Map({
+    container: 'map',
+    style: MAP_STYLE,
+    center: [79.0, 22.0],
+    zoom: 4.5,
+    pitch: 45,
+    bearing: -10,
+    antialias: true,
+    maxPitch: 75,
+    // Smooth zoom
+    scrollZoom: { around: 'cursor' }
+  });
+
+  // Custom NavigationControl with smooth zoom
+  map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'bottom-right');
+
+  // Smooth zoom override
+  map.scrollZoom.setZoomRate(1/450);
+  map.scrollZoom.setWheelZoomRate(1/450);
+
+  map.on('load', () => {
+    plotMarkers(HERITAGE_SITES);
+    document.getElementById('site-count').textContent = `${HERITAGE_SITES.length} Heritage Sites`;
+    setTimeout(() => document.getElementById('loader').classList.add('done'), 800);
+
+    // Listen for zoom changes to switch to globe projection
+    map.on('zoom', handleZoomProjection);
+  });
+
+  map.on('error', (e) => console.warn('Map resource warning:', e.error?.message || e));
+  map.on('click', () => { if (activePopup) { activePopup.remove(); activePopup = null; } });
+
+  // Show recenter when user pans away during navigation
+  map.on('dragstart', () => {
+    if (routeActive) {
+      document.getElementById('recenter-btn').classList.add('active');
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════
+//  GLOBE PROJECTION — auto switch at zoom < 3.5 (debounced to prevent freeze)
+// ════════════════════════════════════════════════════════
+let _projTimer = null;
+function handleZoomProjection() {
+  clearTimeout(_projTimer);
+  _projTimer = setTimeout(() => {
+    try {
+      const z = map.getZoom();
+      if (z < 3.2 && currentProjection !== 'globe') {
+        currentProjection = 'globe';
+        map.setProjection({ type: 'globe' });
+        showToast('🌍 Globe view');
+      } else if (z >= 3.2 && currentProjection !== 'mercator') {
+        currentProjection = 'mercator';
+        map.setProjection({ type: 'mercator' });
+      }
+    } catch(e) { console.warn('Projection switch skipped:', e.message); }
+  }, 200);
+}
+
+// ════════════════════════════════════════════════════════
+//  MARKERS
+// ════════════════════════════════════════════════════════
+function createMarkerEl(site) {
+  const el = document.createElement('div');
+  const color = site.unesco ? '#FFD700' : (CAT_COLORS[site.cat] || CAT_COLORS.default);
+  const icon = CAT_ICONS[site.cat] || CAT_ICONS.default;
+
+  el.innerHTML = `
+    <div style="
+      position:relative; width:${site.unesco ? '34px' : '28px'}; height:${site.unesco ? '34px' : '28px'};
+      display:flex; align-items:center; justify-content:center; cursor:pointer; transition: transform 0.15s;
+    ">
+      <div style="
+        position:absolute; inset:0;
+        background: radial-gradient(circle at 35% 35%, ${color}cc, ${color}44);
+        border: 2px solid ${color}; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+        box-shadow: 0 2px 12px ${color}66, 0 0 0 3px ${color}22;
+      "></div>
+      <div style="position:relative; z-index:1; font-size:${site.unesco ? '14px' : '11px'}; transform: translateY(-2px); line-height:1;">${icon}</div>
+    </div>
+  `;
+
+  el.style.cssText = 'cursor:pointer; transform-origin:bottom center;';
+  el.title = site.name;
+  el.addEventListener('mouseenter', () => { el.querySelector('div').style.transform = 'scale(1.2)'; });
+  el.addEventListener('mouseleave', () => { el.querySelector('div').style.transform = 'scale(1)'; });
+  return el;
+}
+
+function plotMarkers(sites) {
+  allMarkers.forEach(m => m.marker.remove());
+  allMarkers = [];
+
+  sites.forEach(site => {
+    const el = createMarkerEl(site);
+    const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      .setLngLat([site.lng, site.lat]).addTo(map);
+
+    marker.getElement().addEventListener('click', (e) => { e.stopPropagation(); showPopup(site, [site.lng, site.lat]); });
+    allMarkers.push({ site, marker });
+  });
+}
+
+// ════════════════════════════════════════════════════════
+//  POPUP
+// ════════════════════════════════════════════════════════
+function showPopup(site, lngLat) {
+  if (activePopup) activePopup.remove();
+  const icon = CAT_ICONS[site.cat] || CAT_ICONS.default;
+
+  const html = `
+    <div class="popup-inner">
+      <div class="popup-cat">${icon} ${site.cat.toUpperCase()}${site.unesco ? ' · 🏅 UNESCO' : ''}</div>
+      <div class="popup-name">${site.name}</div>
+      <div class="popup-loc">📍 ${site.city}, ${site.state}</div>
+      <div class="popup-actions">
+        <button class="popup-btn primary" onclick="openPanel(${site.id})">Details</button>
+        <button class="popup-btn secondary" onclick="flyTo(${site.lat}, ${site.lng})">Fly Here</button>
+      </div>
+    </div>
+  `;
+
+  activePopup = new maplibregl.Popup({ closeButton: true, maxWidth: '240px' })
+    .setLngLat(lngLat).setHTML(html).addTo(map);
+}
+
+// ════════════════════════════════════════════════════════
+//  FLY TO
+// ════════════════════════════════════════════════════════
+function flyTo(lat, lng, zoom = 15) {
+  map.flyTo({ center: [lng, lat], zoom, pitch: 60, bearing: Math.random() * 60 - 30, duration: 2800, essential: true, curve: 1.5, speed: 0.8 });
+}
+
+// ════════════════════════════════════════════════════════
+//  SIDE PANEL
+// ════════════════════════════════════════════════════════
+function openPanel(siteId) {
+  const site = HERITAGE_SITES.find(s => s.id === siteId);
+  if (!site) return;
+  currentSite = site;
+  if (activePopup) { activePopup.remove(); activePopup = null; }
+
+  document.getElementById('panel-category').textContent = `${CAT_ICONS[site.cat] || '🏛'} ${site.cat.toUpperCase()}`;
+  document.getElementById('panel-name').textContent = site.name;
+  document.getElementById('panel-location').textContent = `📍 ${site.city}, ${site.state}`;
+  document.getElementById('panel-meta').innerHTML = `
+    ${site.era ? `<span class="meta-tag">📅 ${site.era}</span>` : ''}
+    ${site.dynasty ? `<span class="meta-tag">👑 ${site.dynasty}</span>` : ''}
+    ${site.unesco ? '<span class="meta-tag gold">🏅 UNESCO World Heritage</span>' : ''}
+  `;
+  document.getElementById('panel-description').textContent = site.desc;
+  document.getElementById('panel-extras').innerHTML = '';
+  document.getElementById('chat-messages').innerHTML = '';
+  // Dora greeting
+  setTimeout(() => {
+    const greet = document.createElement('div');
+    greet.className = 'dora-greeting';
+    greet.textContent = `Hi! I'm Dora 🦋 Ask me anything about ${site.name} — its history, architecture, legends, or the best time to visit!`;
+    document.getElementById('chat-messages').appendChild(greet);
+  }, 300);
+  document.getElementById('chat-input').value = '';
+  document.getElementById('side-panel').classList.add('open');
+  flyTo(site.lat, site.lng);
+}
+
+document.getElementById('panel-close').addEventListener('click', () => {
+  document.getElementById('side-panel').classList.remove('open');
+  currentSite = null;
+});
+
+// ════════════════════════════════════════════════════════
+//  FILTERS
+// ════════════════════════════════════════════════════════
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const cat = btn.dataset.cat;
+    activeFilter = cat;
+    const filtered = cat === 'all' ? HERITAGE_SITES : cat === 'unesco' ? HERITAGE_SITES.filter(s => s.unesco) : HERITAGE_SITES.filter(s => s.cat === cat);
+    plotMarkers(filtered);
+    document.getElementById('site-count').textContent = `${filtered.length} Sites`;
+    showToast(`Showing ${filtered.length} ${cat === 'all' ? 'heritage' : cat} sites`);
+  });
+});
+
+// ════════════════════════════════════════════════════════
+//  SEARCH
+// ════════════════════════════════════════════════════════
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  if (!q) { searchResults.style.display = 'none'; return; }
+
+  const results = HERITAGE_SITES.filter(s =>
+    s.name.toLowerCase().includes(q) || s.state.toLowerCase().includes(q) ||
+    s.city.toLowerCase().includes(q) || s.dynasty?.toLowerCase().includes(q)
+  ).slice(0, 10);
+
+  if (!results.length) { searchResults.style.display = 'none'; return; }
+
+  searchResults.innerHTML = results.map(s => `
+    <div class="search-result-item" onclick="selectSearchResult(${s.id})">
+      <span class="sri-icon">${CAT_ICONS[s.cat] || '🏛'}</span>
+      <div class="sri-info">
+        <div class="sri-name">${s.name}${s.unesco ? ' 🏅' : ''}</div>
+        <div class="sri-loc">${s.city}, ${s.state}</div>
+      </div>
+      <span class="sri-cat">${s.cat}</span>
+    </div>
+  `).join('');
+
+  searchResults.style.display = 'block';
+});
+
+function selectSearchResult(id) {
+  searchResults.style.display = 'none';
+  searchInput.value = '';
+  openPanel(id);
+}
+
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('search-container').contains(e.target)) searchResults.style.display = 'none';
+});
+
+// ════════════════════════════════════════════════════════
+//  NAVIGATION — Step-by-step with drone follow
+// ════════════════════════════════════════════════════════
+document.getElementById('navigate-btn').addEventListener('click', () => {
+  if (!currentSite) return;
+  if (!navigator.geolocation) { showToast('Geolocation not supported'); return; }
+  showToast('Getting your location...');
+
+  navigator.geolocation.getCurrentPosition(pos => {
+    const start = [pos.coords.longitude, pos.coords.latitude];
+    const end = [currentSite.lng, currentSite.lat];
+    lastUserPos = start;
+    fetchRoute(start, end);
+
+    // Place user marker
+    if (userMarker) userMarker.remove();
+    const userEl = document.createElement('div');
+    userEl.style.cssText = `
+      width:16px; height:16px; background: #4FC3F7;
+      border: 3px solid white; border-radius: 50%;
+      box-shadow: 0 0 0 6px rgba(79,195,247,0.3), 0 2px 8px rgba(0,0,0,0.4);
+    `;
+    userMarker = new maplibregl.Marker({ element: userEl }).setLngLat(start).addTo(map);
+
+    // Start watching user position for live tracking
+    if (userGeoWatcher) navigator.geolocation.clearWatch(userGeoWatcher);
+    userGeoWatcher = navigator.geolocation.watchPosition(livePositionUpdate, null, { enableHighAccuracy: true, maximumAge: 2000 });
+
+  }, () => { showToast('Could not get location. Using demo route.'); fetchDemoRoute(); });
+});
+
+function livePositionUpdate(pos) {
+  if (!routeActive) return;
+  const lngLat = [pos.coords.longitude, pos.coords.latitude];
+  lastUserPos = lngLat;
+
+  if (userMarker) userMarker.setLngLat(lngLat);
+
+  // Update nav step based on proximity
+  if (routeCoords && routeCoords.length > 0) {
+    updateNavStep(lngLat);
+  }
+
+  // Drone follow: move camera to follow user
+  if (droneFollowActive) {
+    map.easeTo({
+      center: lngLat,
+      zoom: map.getZoom() < 14 ? 14 : map.getZoom(),
+      pitch: 60,
+      bearing: computeBearing(lngLat),
+      duration: 1000,
+      essential: false
+    });
+    document.getElementById('recenter-btn').classList.remove('active');
+  }
+}
+
+function computeBearing(currentPos) {
+  if (!routeCoords || routeCoords.length < 2) return map.getBearing();
+  // Find nearest route point and compute bearing to next point
+  let minDist = Infinity, nearIdx = 0;
+  for (let i = 0; i < routeCoords.length; i++) {
+    const d = Math.hypot(routeCoords[i][0] - currentPos[0], routeCoords[i][1] - currentPos[1]);
+    if (d < minDist) { minDist = d; nearIdx = i; }
+  }
+  const nextIdx = Math.min(nearIdx + 3, routeCoords.length - 1);
+  const dx = routeCoords[nextIdx][0] - currentPos[0];
+  const dy = routeCoords[nextIdx][1] - currentPos[1];
+  return (Math.atan2(dx, dy) * 180 / Math.PI);
+}
+
+function updateNavStep(userLngLat) {
+  if (!routeCoords) return;
+  // Simple proximity-based step advancement
+  const totalPts = routeCoords.length;
+  const progress = Math.min(navStepIndex / totalPts, 1);
+  document.getElementById('nav-progress-fill').style.width = `${Math.round(progress * 100)}%`;
+
+  // Find closest point on route
+  let minDist = Infinity, closestIdx = 0;
+  for (let i = 0; i < totalPts; i++) {
+    const d = Math.hypot(routeCoords[i][0] - userLngLat[0], routeCoords[i][1] - userLngLat[1]);
+    if (d < minDist) { minDist = d; closestIdx = i; }
+  }
+  navStepIndex = closestIdx;
+
+  // Remaining distance approximation
+  const remainPts = routeCoords.slice(closestIdx);
+  let remainDist = 0;
+  for (let i = 0; i < remainPts.length - 1; i++) {
+    remainDist += Math.hypot((remainPts[i+1][0]-remainPts[i][0])*111000, (remainPts[i+1][1]-remainPts[i][1])*111000);
+  }
+  const remainKm = (remainDist / 1000).toFixed(1);
+  const etaMins = Math.ceil(remainDist / 600);
+  document.getElementById('nav-dist').textContent = `${remainKm} km`;
+  document.getElementById('nav-eta').textContent = `~${etaMins} min`;
+}
+
+async function fetchRoute(start, end) {
+  showToast('Fetching road route...');
+  try {
+    // OSRM public demo server — real road routing, no API key required
+    const url = `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?overview=full&geometries=geojson&steps=true&annotations=false`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('OSRM error');
+    const data = await res.json();
+    if (!data.routes || !data.routes.length) throw new Error('No route found');
+
+    const route = data.routes[0];
+    const coords = route.geometry.coordinates;
+
+    // Build steps from OSRM legs
+    const steps = [];
+    for (const leg of route.legs) {
+      for (const step of leg.steps) {
+        if (step.maneuver && step.name !== undefined) {
+          const type = step.maneuver.type;
+          const modifier = step.maneuver.modifier || '';
+          const name = step.name || 'unnamed road';
+          let instruction = '';
+          if (type === 'depart') instruction = `Start on ${name}`;
+          else if (type === 'arrive') instruction = `Arrive at ${currentSite?.name || 'destination'}`;
+          else if (type === 'turn') instruction = `Turn ${modifier} onto ${name}`;
+          else if (type === 'new name') instruction = `Continue onto ${name}`;
+          else if (type === 'merge') instruction = `Merge onto ${name}`;
+          else if (type === 'roundabout') instruction = `Take roundabout exit onto ${name}`;
+          else instruction = `${type.charAt(0).toUpperCase() + type.slice(1)} ${modifier} ${name}`.trim();
+          steps.push({ instruction, distance: step.distance });
+        }
+      }
+    }
+
+    const props = {
+      summary: { distance: route.distance, duration: route.duration },
+      segments: [{ steps }]
+    };
+    displayRoute(coords, props);
+    showToast('🛣️ Road route loaded!');
+  } catch (e) {
+    console.warn('OSRM routing failed, using demo:', e);
+    showToast('Using approximate route (road API unavailable)');
+    fetchDemoRoute(start, end);
+  }
+}
+
+function catmullRomSpline(points, numPoints = 50) {
+  if (points.length < 2) return points;
+  const result = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[Math.min(points.length - 1, i + 1)];
+    const p3 = points[Math.min(points.length - 1, i + 2)];
+    for (let t = 0; t < numPoints; t++) {
+      const tt = t / numPoints, tt2 = tt * tt, tt3 = tt2 * tt;
+      const lng = 0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * tt + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * tt2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * tt3);
+      const lat = 0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * tt + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * tt2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * tt3);
+      result.push([lng, lat]);
+    }
+  }
+  result.push(points[points.length - 1]);
+  return result;
+}
+
+function fetchDemoRoute(start, end) {
+  if (!start || !end) {
+    if (!currentSite) return;
+    start = [currentSite.lng - 0.2, currentSite.lat - 0.15];
+    end = [currentSite.lng, currentSite.lat];
+  }
+  const midLng = (start[0] + end[0]) / 2 + (Math.random() - 0.5) * 0.08;
+  const midLat = (start[1] + end[1]) / 2 + (Math.random() - 0.5) * 0.08;
+  const smooth = catmullRomSpline([start, [midLng, midLat], end], 30);
+  const distKm = Math.sqrt(Math.pow((end[0]-start[0])*111, 2) + Math.pow((end[1]-start[1])*111, 2)).toFixed(1);
+  const etaMins = Math.ceil(distKm / 0.6);
+  const fakeProps = {
+    summary: { distance: distKm * 1000, duration: etaMins * 60 },
+    segments: [{ steps: [
+      { instruction: 'Head towards destination', distance: distKm * 300 },
+      { instruction: `Continue towards ${currentSite?.name || 'destination'}`, distance: distKm * 500 },
+      { instruction: 'Arrive at heritage site', distance: 0 }
+    ]}]
+  };
+  displayRoute(smooth, fakeProps);
+}
+
+function displayRoute(coords, props) {
+  ['route-glow','route-line','route-outline'].forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
+  if (map.getSource('route')) map.removeSource('route');
+
+  routeCoords = coords;
+  navStepIndex = 0;
+
+  map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } } });
+
+  map.addLayer({ id: 'route-glow', type: 'line', source: 'route', paint: { 'line-color': '#4FC3F7', 'line-width': 14, 'line-opacity': 0.2, 'line-blur': 8 } });
+  map.addLayer({ id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': '#4FC3F7', 'line-width': 5, 'line-opacity': 0.9 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
+
+  routeActive = true;
+
+  const distKm = (props.summary.distance / 1000).toFixed(1);
+  const etaMins = Math.ceil(props.summary.duration / 60);
+
+  document.getElementById('nav-instruction').textContent = `Navigating to ${currentSite?.name || 'destination'}`;
+  document.getElementById('nav-dist').textContent = `${distKm} km`;
+  document.getElementById('nav-eta').textContent = `~${etaMins} min`;
+  document.getElementById('nav-progress-fill').style.width = '5%';
+
+  const steps = props.segments?.[0]?.steps || [];
+  document.getElementById('nav-steps').innerHTML = steps.map((s, i) => `
+    <div class="nav-step ${i === 0 ? 'current' : ''}">
+      <span class="step-num">${i + 1}.</span>
+      <span>${s.instruction}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('nav-hud').classList.add('active');
+
+  const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
+  map.fitBounds(bounds, { padding: { top: 100, bottom: 220, left: 80, right: 80 }, pitch: 55, duration: 2000 });
+}
+
+// ─── DRONE FOLLOW ───
+document.getElementById('drone-follow-btn').addEventListener('click', () => {
+  droneFollowActive = !droneFollowActive;
+  const btn = document.getElementById('drone-follow-btn');
+  const indicator = document.getElementById('drone-indicator');
+
+  if (droneFollowActive) {
+    btn.classList.add('active');
+    btn.textContent = '🚁 Following...';
+    indicator.classList.add('active');
+    showToast('Drone follow ON — camera tracks your position');
+
+    // If we have a last position, immediately center
+    if (lastUserPos) {
+      map.easeTo({ center: lastUserPos, zoom: 14, pitch: 60, duration: 800 });
+      document.getElementById('recenter-btn').classList.remove('active');
+    }
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '🚁 Drone Follow';
+    indicator.classList.remove('active');
+    showToast('Drone follow OFF');
+  }
+});
+
+// ─── RECENTER ───
+document.getElementById('recenter-btn').addEventListener('click', () => {
+  if (lastUserPos && routeActive) {
+    map.easeTo({ center: lastUserPos, zoom: 14, pitch: 60, duration: 800 });
+    document.getElementById('recenter-btn').classList.remove('active');
+  } else if (routeCoords) {
+    const bounds = routeCoords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(routeCoords[0], routeCoords[0]));
+    map.fitBounds(bounds, { padding: 80, duration: 1200 });
+    document.getElementById('recenter-btn').classList.remove('active');
+  }
+});
+
+// ─── CLOSE NAV ───
+document.getElementById('nav-close-btn').addEventListener('click', () => {
+  ['route-glow','route-line'].forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
+  if (map.getSource('route')) map.removeSource('route');
+  if (userMarker) { userMarker.remove(); userMarker = null; }
+  if (userGeoWatcher) { navigator.geolocation.clearWatch(userGeoWatcher); userGeoWatcher = null; }
+  document.getElementById('nav-hud').classList.remove('active');
+  document.getElementById('recenter-btn').classList.remove('active');
+  document.getElementById('drone-indicator').classList.remove('active');
+  document.getElementById('drone-follow-btn').classList.remove('active');
+  document.getElementById('drone-follow-btn').textContent = '🚁 Drone Follow';
+  routeActive = false;
+  droneFollowActive = false;
+  routeCoords = null;
+  lastUserPos = null;
+  navStepIndex = 0;
+});
+
+// ════════════════════════════════════════════════════════
+//  AI CHAT — calls your Cloudflare Worker proxy (no API key in this file)
+//  Deploy worker.js to Cloudflare Workers, then paste your worker URL below.
+// ════════════════════════════════════════════════════════
+
+// 👇 Replace with your deployed Cloudflare Worker URL after deploying worker.js
+const CF_WORKER_URL = 'https://heritage-ai.anubhuthimap.workers.dev/ai';
+
+async function askAI(question) {
+  if (!currentSite) return;
+  const chatEl = document.getElementById('chat-messages');
+
+  const userBubble = document.createElement('div');
+  userBubble.className = 'chat-bubble user';
+  userBubble.textContent = question;
+  chatEl.appendChild(userBubble);
+
+  const loadBubble = document.createElement('div');
+  loadBubble.className = 'chat-bubble ai loading';
+  loadBubble.textContent = 'Researching...';
+  chatEl.appendChild(loadBubble);
+  chatEl.scrollTop = chatEl.scrollHeight;
+
+  const systemPrompt = `You are Dora, a warm and knowledgeable heritage guide for Heritage Map, an Indian heritage exploration app. Introduce yourself as Dora when relevant. Be conversational, vivid, and passionate about Indian history. You are currently providing information about: ${currentSite.name} in ${currentSite.city}, ${currentSite.state}. Dynasty: ${currentSite.dynasty}, Era: ${currentSite.era}. Description: ${currentSite.desc}. Answer questions about this site with vivid, accurate detail. Keep answers to 2-3 sentences unless more is needed.`;
+
+  try {
+    const response = await fetch(CF_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system: systemPrompt, question })
+    });
+
+    if (!response.ok) throw new Error(`Worker returned ${response.status}`);
+    const data = await response.json();
+    loadBubble.classList.remove('loading');
+    loadBubble.textContent = data.answer || 'No response from AI.';
+  } catch (e) {
+    console.error('Dora fetch error:', e);
+    loadBubble.classList.remove('loading');
+    loadBubble.textContent = `Dora couldn't connect: ${e.message}. Open browser console (F12) to see the full error.`;
+  }
+
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+document.getElementById('chat-send').addEventListener('click', () => {
+  const q = document.getElementById('chat-input').value.trim();
+  if (!q) return;
+  document.getElementById('chat-input').value = '';
+  askAI(q);
+});
+
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('chat-send').click();
+});
+
+// ════════════════════════════════════════════════════════
+//  MAP CONTROLS
+// ════════════════════════════════════════════════════════
+let is3D = true;
+document.getElementById('btn-3d').addEventListener('click', () => {
+  is3D = !is3D;
+  map.easeTo({ pitch: is3D ? 50 : 0, duration: 800 });
+  document.getElementById('btn-3d').classList.toggle('active', is3D);
+  showToast(is3D ? '3D mode on' : 'Flat map mode');
+});
+
+document.getElementById('btn-location').addEventListener('click', () => {
+  navigator.geolocation?.getCurrentPosition(pos => {
+    map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 12, pitch: 45, duration: 1500 });
+  }, () => showToast('Location access denied'));
+});
+
+document.getElementById('btn-globe').addEventListener('click', () => {
+  clearTimeout(_projTimer); // cancel any pending auto-switch
+  if (currentProjection === 'globe') {
+    currentProjection = 'mercator';
+    try { map.setProjection({ type: 'mercator' }); } catch(e) {}
+    map.flyTo({ center: [79.0, 22.0], zoom: 4.5, pitch: 45, duration: 1500 });
+    document.getElementById('btn-globe').classList.remove('active');
+    showToast('Map view');
+  } else {
+    currentProjection = 'globe';
+    try { map.setProjection({ type: 'globe' }); } catch(e) {}
+    map.flyTo({ center: [79.0, 22.0], zoom: 2.5, pitch: 0, duration: 1800 });
+    document.getElementById('btn-globe').classList.add('active');
+    showToast('🌍 Globe view');
+  }
+});
+
+// ════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ════════════════════════════════════════════════════════
+//  START
+// ════════════════════════════════════════════════════════
+function hideLoader() { document.getElementById('loader').classList.add('done'); }
+const loaderFallback = setTimeout(hideLoader, 6000);
+initMap();
+map.on('load', () => clearTimeout(loaderFallback));
+</script>
+</body>
+</html>
